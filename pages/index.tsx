@@ -19,6 +19,7 @@ interface IStateTodo {
   id: number;
   content: string;
   isCheck: boolean;
+  isEdit: boolean;
 }
 export default function Home() {
   const [tab, setTab] = useState<"todo" | "done">("todo");
@@ -27,6 +28,15 @@ export default function Home() {
   const [input, setInput] = useState<string>("");
   const [filter, setFilter] = useState({ content: "" });
 
+  // 검색
+  useEffect(() => {
+    const filteredList = [...todoList].filter(item => {
+      return item.content.includes(filter.content);
+    });
+    setFilterdTodoList(filteredList);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter.content]);
+
   // 탭 변경
   const onClickTab = (e: React.MouseEvent<HTMLDivElement>) => {
     e.currentTarget.id === "todo" && setTab("todo");
@@ -34,7 +44,19 @@ export default function Home() {
   };
 
   // 할 일 완료
-  const onChangeCheckbox = (id: number) => {
+  const onChangeCheckbox = (id: number, isEdit: boolean) => {
+    // 편집중일땐 리턴
+    if (isEdit) return;
+
+    // 필터중일때
+    if (filter.content) {
+      const checkedList = filterdTodoList.map(item => {
+        return item.id === id ? { ...item, isCheck: !item.isCheck } : item;
+      });
+      setFilterdTodoList(checkedList);
+      return;
+    }
+
     const checkedList = todoList.map(item => {
       return item.id === id ? { ...item, isCheck: !item.isCheck } : item;
     });
@@ -78,15 +100,27 @@ export default function Home() {
     setTodoList(deletedList);
   };
 
-  // 검색
-  useEffect(() => {
-    const filteredList = [...todoList].filter(item => {
-      return item.content.includes(filter.content);
-    });
-    setFilterdTodoList(filteredList);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter.content]);
+  // 편집 상태로 변경
+  const onClickIsEdit = (
+    e: React.MouseEvent<HTMLButtonElement>,
+    id: number,
+  ) => {
+    e.stopPropagation();
 
+    // 필터중일때
+    if (filter.content) {
+      const isEditingList = [...filterdTodoList].map(item => {
+        return item.id === id ? { ...item, isEdit: !item.isEdit } : item;
+      });
+      setFilterdTodoList(isEditingList);
+      return;
+    }
+
+    const isEditingList = [...todoList].map(item => {
+      return item.id === id ? { ...item, isEdit: !item.isEdit } : item;
+    });
+    setTodoList(isEditingList);
+  };
   return (
     <>
       {/* Container Wrap */}
@@ -137,23 +171,66 @@ export default function Home() {
               <div
                 key={i}
                 className="flex flex-grow justify-between items-center px-2 py-3 cursor-pointer hover:bg-gray-200 rounded-md"
-                onClick={() => onChangeCheckbox(todo.id)}
+                onClick={() => onChangeCheckbox(todo.id, todo.isEdit)}
               >
                 <div className="w-full flex gap-2 items-center">
-                  <input
-                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
-                    type="checkbox"
-                    value={todo.content}
-                    checked={todo.isCheck}
-                    onChange={() => {}}
-                  />
+                  {!todo.isEdit && (
+                    <input
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
+                      type="checkbox"
+                      value={todo.content}
+                      checked={todo.isCheck}
+                      onChange={() => {}}
+                    />
+                  )}
                   <input
                     type="text"
+                    id={String(todo.id)}
                     value={todo.content}
                     className="flex-grow min-w-[200px] font-semibold text-sm text-gray-500 bg-transparent focus:outline-none cursor-pointer"
-                    readOnly
+                    readOnly={!todo.isEdit}
+                    onChange={e => {
+                      const id = e.target.id;
+                      const value = e.target.value;
+
+                      const deep = [...todoList].map(item => {
+                        return String(item.id) === id
+                          ? { ...item, content: value }
+                          : item;
+                      });
+                      setTodoList(deep);
+                    }}
                   />
                 </div>
+                {todo.isEdit ? (
+                  <button
+                    className={`flex w-[50px] gap-4 items-center text-sm text-blue-300 hover:font-semibold hover:text-blue-700`}
+                    id={String(todo.id)}
+                    value={todo.content}
+                    onClick={e => {
+                      const id = e.currentTarget.id;
+                      const value = e.currentTarget.value;
+
+                      const saveTodoList = [...todoList].map(item => {
+                        return String(item.id) === id
+                          ? { ...item, content: value, isEdit: false }
+                          : item;
+                      });
+                      setTodoList(saveTodoList);
+                    }}
+                  >
+                    완료
+                  </button>
+                ) : (
+                  <button
+                    className={`flex w-[50px] gap-4 items-center text-sm text-gray-300 hover:font-semibold hover:text-gray-700`}
+                    onClick={e => {
+                      onClickIsEdit(e, todo.id);
+                    }}
+                  >
+                    편집
+                  </button>
+                )}
                 <button
                   className="flex w-[50px] gap-4 items-center text-sm text-gray-300 hover:font-semibold hover:text-gray-700"
                   onClick={e => onClickDeleteTodo(e, todo.id)}
@@ -169,7 +246,7 @@ export default function Home() {
               <div
                 key={i}
                 className="flex flex-grow justify-between items-center px-2 py-3 cursor-pointer hover:bg-gray-200 rounded-md"
-                onClick={() => onChangeCheckbox(todo.id)}
+                onClick={() => onChangeCheckbox(todo.id, todo.isEdit)}
               >
                 <div className="w-full flex gap-2 items-center">
                   <input
@@ -177,15 +254,62 @@ export default function Home() {
                     type="checkbox"
                     value={todo.content}
                     checked={todo.isCheck}
-                    onChange={() => {}}
                   />
                   <input
                     type="text"
+                    id={String(todo.id)}
                     value={todo.content}
                     className="flex-grow min-w-[200px] font-semibold text-sm text-gray-500 bg-transparent focus:outline-none cursor-pointer"
-                    readOnly
+                    onChange={e => {
+                      const id = e.target.id;
+                      const value = e.target.value;
+
+                      const deep = [...filterdTodoList].map(item => {
+                        return String(item.id) === id
+                          ? { ...item, content: value }
+                          : item;
+                      });
+                      setFilterdTodoList(deep);
+                    }}
+                    readOnly={!todo.isEdit}
                   />
                 </div>
+                {todo.isEdit ? (
+                  <button
+                    className={`flex w-[50px] gap-4 items-center text-sm text-blue-300 hover:font-semibold hover:text-blue-700`}
+                    id={String(todo.id)}
+                    value={todo.content}
+                    onClick={e => {
+                      const id = e.currentTarget.id;
+                      const value = e.currentTarget.value;
+
+                      const saveTodoList = [...todoList].map(item => {
+                        return String(item.id) === id
+                          ? { ...item, content: value }
+                          : item;
+                      });
+
+                      const filterdIsEditing = [...filterdTodoList].map(
+                        item => {
+                          return String(item.id) === id
+                            ? { ...item, isEdit: false }
+                            : item;
+                        },
+                      );
+                      setFilterdTodoList(filterdIsEditing);
+                      setTodoList(saveTodoList);
+                    }}
+                  >
+                    완료
+                  </button>
+                ) : (
+                  <button
+                    className={`flex w-[50px] gap-4 items-center text-sm text-gray-300 hover:font-semibold hover:text-gray-700`}
+                    onClick={e => onClickIsEdit(e, todo.id)}
+                  >
+                    편집
+                  </button>
+                )}
                 <button
                   className="flex w-[50px] gap-4 items-center text-sm text-gray-300 hover:font-semibold hover:text-gray-700"
                   onClick={e => onClickDeleteTodo(e, todo.id)}
