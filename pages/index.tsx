@@ -141,7 +141,7 @@ export default function Home() {
             >
               할 일
             </div>
-            <div
+            {/* <div
               className={`${
                 tab === "done"
                   ? "font-bold text-black"
@@ -151,7 +151,7 @@ export default function Home() {
               onClick={onClickTab}
             >
               완료됨
-            </div>
+            </div> */}
           </div>
 
           {/* Search Bar */}
